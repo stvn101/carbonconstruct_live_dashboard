@@ -29,6 +29,7 @@
     "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
+    "@vercel/node": "^5.7.12",
     "@vitejs/plugin-react": "^4.2.1",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.2.2",

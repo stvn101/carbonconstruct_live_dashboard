@@ -38,6 +38,7 @@ export default function Dashboard() {
 
   const handleSignOut = () => {
     localStorage.removeItem("carbon_auth");
+    localStorage.removeItem("carbon_token");
     setIsAuthenticated(false);
   };
 

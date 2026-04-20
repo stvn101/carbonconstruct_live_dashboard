@@ -7,33 +7,58 @@ export interface CarbonData {
   liveFeed: { user: string; anonUser: string; action: string; time: string }[];
 }
 
+export interface SignInResult {
+  token: string;
+  mode?: string;
+}
+
+// ---------------------------------------------------------------------------
+// fetchCarbonData
+// Calls the /api/carbon-data serverless endpoint. If an auth token is stored
+// in localStorage it is forwarded so the upstream API can return the
+// authenticated (non-anonymised) data set.
+// ---------------------------------------------------------------------------
 export const fetchCarbonData = async (): Promise<CarbonData> => {
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  return {
-    totalSaved: 1240 + Math.floor(Math.random() * 10),
-    activeProjects: 85,
-    efficiency: 94,
-    trend: [
-      { day: "Mon", savings: 120 },
-      { day: "Tue", savings: 132 },
-      { day: "Wed", savings: 101 },
-      { day: "Thu", savings: 154 },
-      { day: "Fri", savings: 190 },
-      { day: "Sat", savings: 230 },
-      { day: "Sun", savings: 210 },
-    ],
-    materials: [
-      { category: "Concrete", value: 45 },
-      { category: "Steel", value: 25 },
-      { category: "Timber", value: 20 },
-      { category: "Glass", value: 10 },
-    ],
-    liveFeed: [
-      { user: "BuildCorp QLD", anonUser: "Tier 1 Builder (QLD)", action: "Saved 12t CO2e", time: "Just now" },
-      { user: "EcoStruct NSW", anonUser: "Commercial Project (NSW)", action: "Optimized concrete mix", time: "2m ago" },
-      { user: "GreenHomes VIC", anonUser: "Residential Developer (VIC)", action: "Switched to timber frame", time: "5m ago" },
-      { user: "UrbanDevelop", anonUser: "Infrastructure Project", action: "Reduced transport emissions", time: "12m ago" },
-      { user: "SustainableLiving", anonUser: "Green Star Builder", action: "Saved 5t CO2e", time: "18m ago" },
-    ],
-  };
+  const headers: Record<string, string> = { Accept: "application/json" };
+
+  const token = localStorage.getItem("carbon_token");
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch("/api/carbon-data", { headers });
+
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      // Token is invalid – clear local state so the UI can re-prompt
+      localStorage.removeItem("carbon_auth");
+      localStorage.removeItem("carbon_token");
+    }
+    throw new Error(`Failed to fetch carbon data (${res.status})`);
+  }
+
+  return res.json() as Promise<CarbonData>;
+};
+
+// ---------------------------------------------------------------------------
+// signIn
+// Calls the /api/signin serverless endpoint which proxies credentials to the
+// CarbonConstruct API. On success the returned JWT is persisted in
+// localStorage for subsequent authenticated requests.
+// ---------------------------------------------------------------------------
+export const signIn = async (email: string, password: string): Promise<void> => {
+  const res = await fetch("/api/signin", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? "Sign-in failed");
+  }
+
+  const data = (await res.json()) as SignInResult;
+  localStorage.setItem("carbon_token", data.token);
+  localStorage.setItem("carbon_auth", "true");
 };
